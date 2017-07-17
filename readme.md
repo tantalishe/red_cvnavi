@@ -23,13 +23,13 @@ $ cd ~/.ros/camera_info && ls
 
 3) Launching node
 
-    $ rosrun red_cvnavi cvnavi.py
+        $ rosrun red_cvnavi cvnavi.py
 
     for default alpha = 18.3, normal = 0.52
 
     or
 
-	$ rosrun red_cvnavi cvnavi.py -a 18.3 -n 0.52
+	    $ rosrun red_cvnavi cvnavi.py -a 18.3 -n 0.52
 
     -a -- alpha angle -- camera rotate [deg];
     -n -- normal length from camera to floor [m];
@@ -38,18 +38,18 @@ $ cd ~/.ros/camera_info && ls
 
     Turn on Line Finder:
 
-	$ rosservice call /camera_floor "switch: true"
+	    $ rosservice call /camera_floor "switch: true"
 
     Turn off Line Finder:
 
-    $ rosservice call /camera_floor "switch: false"
+        $ rosservice call /camera_floor "switch: false"
 
 5) [just for enjoy] See image
 
-	$ rosrun image_view image_view image:=/see_type
+	    $ rosrun image_view image_view image:=/see_type
 
 6) Glooping on useful information:
 
-    $ rostopic echo /camera_type
+        $ rostopic echo /camera_type
 
 Have fun!
