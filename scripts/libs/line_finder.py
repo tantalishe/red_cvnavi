@@ -27,8 +27,8 @@ class LineFinder:
         # center RF
         self.CRF = (y / 2, x / 2)       # поворот системы координат кадра на pi/2 и перенос в центр кадра
 
-        # self.cam = cv2.VideoCapture(VIDEO_DEV)
-        # self.tests()
+        self.cam = cv2.VideoCapture(VIDEO_DEV)
+        self.tests()
 
     def init(self):
         pass
@@ -46,8 +46,8 @@ class LineFinder:
         R = self.n * tan(self.alpha)
         r0 = self.n * tan(self.alpha - self.cameraInfo['fovs']['v'] / 2)
         r = R - r0
-        l = r * sin(self.alpha)
-        h = 2 * r * cos(self.alpha)
+        l = r * cos(pi/2 - self.alpha)
+        h = 2 * r * sin(pi/2 - self.alpha)
         l0 = L - l
 
         imDims = getDimImage(l0, self.cameraInfo['fovs'])  # dims plane of frame in [m]
@@ -67,10 +67,11 @@ class LineFinder:
         return x, y
 
     def tests(self):
-        t = matrix([[   sin(self.alpha), 0, cos(self.alpha), -self.n * sin(self.alpha)],
+        t = matrix([[   cos(self.alpha), 0, sin(self.alpha), 0],
                       [ 0, -1, 0, 0],
-                      [ cos(self.alpha), 0, -sin(self.alpha), self.n * cos(self.alpha)],
+                      [ sin(self.alpha), 0, -cos(self.alpha), self.n],
                       [ 0, 0, 0, 1]])
+        print(t)
         while True:
             _, raw = self.cam.read()
             h, w, _ = raw.shape
@@ -131,10 +132,10 @@ class LineFinder:
                 objGRF = lefty
                 objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
                 x, y, z = self.getPoint3d(objCRF[1], objCRF[0])
-                floorPoint = t * np.transpose(matrix([x, y, z, 0]))
+                floorPoint = t * np.transpose(matrix([x, y, z, 1]))
                 # print(x,y,z)
-                # print(np.transpose(floorPoint))
-
+                print(np.transpose(floorPoint))
+            #
             # point in a center frame
             cv2.circle(raw, (int(self.CRF[0]), int(self.CRF[1])), 5, (0, 200, 200), 2)
             # cross in a center frame
