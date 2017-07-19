@@ -24,7 +24,7 @@ class GloopingAtTheFloorServer:
         self.cameraInfo['ratios'] = None  # ration [mm] / [px]
         self.cameraInfo['fovs'] = {'v': FOVS[0], 'h': FOVS[1], 'd': FOVS[2]}
 
-        self.name = 'GloopingArTheFloor' + str(self)
+        self.name = 'GloopingAtTheFloor' + str(self)
 
         self.cameraTopic = cameraTopic
 
@@ -38,8 +38,8 @@ class GloopingAtTheFloorServer:
         self.left = None
         self.right = None
 
-        self.pubView = rospy.Publisher('see_type', Image, queue_size=1)
-        self.pubLine = rospy.Publisher('camera_type', PoseArray, queue_size=1)
+        self.pubView = rospy.Publisher('see_tape', Image, queue_size=1)
+        self.pubLine = rospy.Publisher('camera_tape', PoseArray, queue_size=1)
 
     def __del__(self):
         del(self.subCamera)
@@ -50,33 +50,41 @@ class GloopingAtTheFloorServer:
         cvImage, shape = getCVImage(imageMsg)
         self.cameraInfo['shape'] = shape
         fl = LineFinder(self.cameraInfo, self.alpha, self.n)
-        self.left, self.right, imageEx = fl.getLine(cvImage)
 
-        msg = PoseArray()
-        msg.header.frame_id = 'camera'
-        msg.header.stamp = rospy.Time()
+        for tType in ['r', 'y']:
+            self.left, self.right, imageEx, isFind = fl.getLine(cvImage, tapeType=tType)
+            if isFind:
+                msg = PoseArray()
+                msg.header.frame_id = 'camera'
+                msg.header.stamp = rospy.Time()
+                if tType == 'r':
+                    msg.header.seq = 0
+                elif tType == 'y':
+                    msg.header.seq = 1
 
-        # leftest point
-        p = Pose()
-        p.position.x = self.left[0]
-        p.position.y = self.left[1]
-        p.position.z = self.left[2]
-        msg.poses.append(p)
-        # rightest point
-        p.position.x = self.right[0]
-        p.position.y = self.right[1]
-        p.position.z = self.right[2]
-        msg.poses.append(p)
+                # leftest point
+                p = Pose()
+                p.position.x = self.left[0]
+                p.position.y = self.left[1]
+                p.position.z = self.left[2]
+                msg.poses.append(p)
 
-        self.pubLine.publish(msg)
+                # rightest point
+                p.position.x = self.right[0]
+                p.position.y = self.right[1]
+                p.position.z = self.right[2]
+                msg.poses.append(p)
 
-        imageMsgEx = getMsgImage(imageEx)
-        self.pubView.publish(imageMsgEx)
+                self.pubLine.publish(msg)
+
+            # publish decorated image
+            imageMsgEx = getMsgImage(imageEx)
+            self.pubView.publish(imageMsgEx)
 
     def handler(self, request):
         if request.switch:
             self.subCamera = rospy.Subscriber(self.cameraTopic, Image, self.callback)
-            rospy.loginfo('Work was started! For more detail see topic /see_type and /camera_type')
+            rospy.loginfo('Work was started! For more detail see topics /see_tape and /camera_tape')
             rospy.loginfo('Working...')
         else:
             if self.subCamera is not None:

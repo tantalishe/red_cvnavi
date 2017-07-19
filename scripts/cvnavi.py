@@ -10,9 +10,11 @@ CAMERA_TOPICS = ['/usb_cam/image_rect', '/usb_cam/image_raw']
 def getArgs():
     topicNum = 1
     ap = argparse.ArgumentParser()
-    ap.add_argument('-n', '--normal', required=False, default=0.52,
+    ap.add_argument('-n', '--normal', required=False,
+                    default=0.52,
                     help='norm length from camera to floor in [m]')
-    ap.add_argument('-a', '--alpha', required=False, default=18.3,
+    ap.add_argument('-a', '--alpha', required=False,
+                    default=18.3,
                     help='angele between camera and floor in [deg]')
 
     ap.add_argument('-t', '--topic', required=False,

@@ -27,11 +27,8 @@ class LineFinder:
         # center RF
         self.CRF = (y / 2, x / 2)       # поворот системы координат кадра на pi/2 и перенос в центр кадра
 
-        self.cam = cv2.VideoCapture(VIDEO_DEV)
-        self.tests()
-
-    def init(self):
-        pass
+        # self.cam = cv2.VideoCapture(VIDEO_DEV)
+        # self.tests()
 
     def pxToM(self, value, key='v'):
         return self.cameraInfo['ratios'][key] * value
@@ -64,9 +61,12 @@ class LineFinder:
         return (x, y, z)
 
     def convertToCenterRF(self, (x, y)):
-        return x, y
+        objGRF = (x, y)
+        objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
+        return objCRF
 
     def tests(self):
+        """ ONLY FOR TEST ON LOCAL COMPUTER WITHOUT ROS!!!"""
         t = matrix([[   cos(self.alpha), 0, sin(self.alpha), 0],
                       [ 0, -1, 0, 0],
                       [ sin(self.alpha), 0, -cos(self.alpha), self.n],
@@ -128,9 +128,10 @@ class LineFinder:
 
                 cv2.line(raw, lefty, righty, (0, 255, 0), 2)
 
+                # objGRF = lefty
+                # objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
 
-                objGRF = lefty
-                objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
+                objCRF = self.convertToCenterRF(lefty)
                 x, y, z = self.getPoint3d(objCRF[1], objCRF[0])
                 floorPoint = t * np.transpose(matrix([x, y, z, 1]))
                 # print(x,y,z)
@@ -153,15 +154,28 @@ class LineFinder:
         self.cam.release()
         cv2.destroyAllWindows()
 
-    def getLine(self, image):
+    def getLine(self, image, tapeType='r'):
+        isFind = False
+        # select type of tape
+        # default white/red tape
+        color = [0, 0, 255]
+        lower = np.array([165, 107, 112])
+        upper = np.array([211, 215, 223])
+        # or select
+        if tapeType == 'y':
+            color = [0, 200, 200]
+            lower = np.array([165, 107, 112])
+            upper = np.array([211, 215, 223])
+        elif tapeType == 'b':
+            color = [255, 0, 0]
+            lower = np.array([165, 107, 112])
+            upper = np.array([211, 215, 223])
+
         h, w, _ = image.shape
 
         # filtering and lentochka selection in bin image
         raw = cv2.blur(image, (5, 5))
         hsv = cv2.cvtColor(raw, cv2.COLOR_BGR2HSV)
-
-        lower = np.array([165, 107, 112])
-        upper = np.array([211, 215, 223])
 
         mask = cv2.inRange(hsv, lower, upper)
         # res = cv2.bitwise_and(raw, raw, mask=mask)
@@ -191,8 +205,9 @@ class LineFinder:
         points = np.array(points)
 
         # try to find leftest and rightest points
-        xyzL, xyzR = (0,0,0), (0,0,0)
-        if len(points) > 0:
+        xyzL, xyzR = (0, 0, 0), (0, 0, 0)
+        if len(points) > 1:
+            isFind = True
             [vx, vy, x, y] = cv2.fitLine(points, cv2.DIST_LABEL_PIXEL, 0, 0.01, 0.01)
 
             x_min = min(points[:, 0])
@@ -201,19 +216,15 @@ class LineFinder:
             lefty = (int(x_min), int([y for x, y in points if x == x_min][0]))
             righty = (int(x_max), int([y for x, y in points if x == x_max][0]))
 
-            cv2.line(image, lefty, righty, (0, 255, 0), 2)
+            cv2.line(image, lefty, righty, color, 2)
 
             # lefty convert RF
-            objGRF = lefty
-            objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
+            objCRF = self.convertToCenterRF(lefty)
             xyzL = self.getPoint3d(objCRF[1], objCRF[0])
-            # print(x,y,z)
 
             # righty convert RF
-            objGRF = lefty
-            objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
+            objCRF = self.convertToCenterRF(righty)
             xyzR = self.getPoint3d(objCRF[1], objCRF[0])
-
 
         # draw point in a center frame
         cv2.circle(image, (int(self.CRF[0]), int(self.CRF[1])), 5, (0, 200, 200), 2)
@@ -221,7 +232,8 @@ class LineFinder:
         cv2.line(image, (0, self.CRF[1]), (self.xy0[1], self.CRF[1]), (0, 200, 200), 1)
         cv2.line(image, (self.CRF[0], 0), (self.CRF[0], self.xy0[0]), (0, 200, 200), 1)
 
-        return xyzL, xyzR, image
+        return xyzL, xyzR, image, isFind
+
 
 if __name__ == '__main__':
     # imageDim = getDimImage(l0, FOVS[0], FOVS[1], FOVS[2])

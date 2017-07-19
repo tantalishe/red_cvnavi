@@ -11,6 +11,8 @@ $ cd ~/.ros/camera_info && ls
 
 2) Launching usb_cam
 
+	    TODO: rect colored image
+
 	For local computer:
 
 		$ roslaunch red_cvision usb_cam_local_0.launch
@@ -29,7 +31,7 @@ $ cd ~/.ros/camera_info && ls
 
     or
 
-	    $ rosrun red_cvnavi cvnavi.py -a 18.3 -n 0.52
+	    $ rosrun red_cvnavi cvnavi.py -a ANGLE -n NORMAL
 
     -a -- alpha angle -- camera rotate [deg];
     -n -- normal length from camera to floor [m];
@@ -46,10 +48,10 @@ $ cd ~/.ros/camera_info && ls
 
 5) [just for enjoy] See image
 
-	    $ rosrun image_view image_view image:=/see_type
+	    $ rosrun image_view image_view image:=/see_tape
 
 6) Glooping on useful information:
 
-        $ rostopic echo /camera_type
+        $ rostopic echo /camera_tape
 
 Have fun!
