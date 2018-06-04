@@ -7,10 +7,10 @@ from geometry_msgs.msg import Pose
 from libs.utils import getCVImage, getMsgImage
 from libs.line_finder import LineFinder
 
-from red_msgs.srv import CameraFloor
+from red_cvnavi.srv import CameraFloor
 
-FOVS = (43.78, 54.35, 65.47)    # vertical, horizontal, diagonal angles. Logitech 920FullHD (640, 480)
-
+# FOVS = (43.78, 54.35, 65.47)    # vertical, horizontal, diagonal angles. Logitech 920FullHD (640, 480)
+FOVS = (41.5, 53.6, 64.5)          # not very precise fovs for Intel RealSense SR300 (4:3)
 
 class GloopingAtTheFloorServer:
 
@@ -35,8 +35,7 @@ class GloopingAtTheFloorServer:
         self.subCamera = None
         self.cameraGloopingServer = None
 
-        self.left = None
-        self.right = None
+        self.points = None
 
         self.pubView = rospy.Publisher('see_tape', Image, queue_size=1)
         self.pubLine = rospy.Publisher('camera_tape', PoseArray, queue_size=1)
@@ -51,8 +50,10 @@ class GloopingAtTheFloorServer:
         self.cameraInfo['shape'] = shape
         fl = LineFinder(self.cameraInfo, self.alpha, self.n)
 
-        for tType in ['r', 'y']:
-            self.left, self.right, imageEx, isFind = fl.getLine(cvImage, tapeType=tType)
+        # tape_colors = ['r', 'y'] # find red and yellow lines
+        tape_colors = ['r'] # find only red lines
+        for tType in tape_colors:
+            self.points, imageEx, isFind = fl.getLine(cvImage, tapeType=tType)
             if isFind:
                 msg = PoseArray()
                 msg.header.frame_id = 'camera'
@@ -62,18 +63,12 @@ class GloopingAtTheFloorServer:
                 elif tType == 'y':
                     msg.header.seq = 1
 
-                # leftest point
-                p = Pose()
-                p.position.x = self.left[0]
-                p.position.y = self.left[1]
-                p.position.z = self.left[2]
-                msg.poses.append(p)
-
-                # rightest point
-                p.position.x = self.right[0]
-                p.position.y = self.right[1]
-                p.position.z = self.right[2]
-                msg.poses.append(p)
+                for point in self.points:
+                    p = Pose()
+                    p.position.x = point[0]
+                    p.position.y = point[1]
+                    p.position.z = point[2]
+                    msg.poses.append(p)
 
                 self.pubLine.publish(msg)
 
@@ -82,8 +77,10 @@ class GloopingAtTheFloorServer:
             self.pubView.publish(imageMsgEx)
 
     def handler(self, request):
+
         if request.switch:
             self.subCamera = rospy.Subscriber(self.cameraTopic, Image, self.callback)
+            
             rospy.loginfo('Work was started! For more detail see topics /see_tape and /camera_tape')
             rospy.loginfo('Working...')
         else:

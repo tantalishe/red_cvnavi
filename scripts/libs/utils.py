@@ -12,7 +12,7 @@ def getCVImage(data):
     shape = None
     try:
         img = bridge.imgmsg_to_cv2(data, "bgr8")
-        img = cv2.flip(img, -1) # because rotated camera on kuka youbot arm
+        # img = cv2.flip(img, -1) # because rotated camera on kuka youbot arm # now not
         shape = img.shape
         shape = (shape[0], shape[1], math.sqrt(shape[0] ** 2 + shape[1] ** 2))
     except CvBridgeError, e:
