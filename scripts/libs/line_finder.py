@@ -82,9 +82,11 @@ class LineFinder:
         kv = self.pxToM(kv, 'v')
         kh = self.pxToM(kh, 'h')
 
+        # Z - optical axis, direction of sight; Y - left from viewer; X - up from viewer
         tan_beta = tan(pi/2 - self.alpha)
-        # z = tan_beta  * L / (tan_beta  - kv / l0) # can't understand how dis work
         z = L / (1 - kv/l0/tan_beta)
+        # z = tan_beta  * L / (tan_beta  - kv / l0) # can't understand how dis work
+        
         # offset_angle = atan2(kv, l0)
         # z = self.n * cos(offset_angle)/cos(self.alpha + offset_angle) # mah method
         

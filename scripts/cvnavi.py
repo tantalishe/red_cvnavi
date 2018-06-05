@@ -21,24 +21,29 @@ def getArgs():
     ap.add_argument('-t', '--topic', required=False,
                     help='camera topic num')
 
+    ap.add_argument('-f', '--frame', required=False,
+                    help=' reference frame')
+
     args = vars(ap.parse_args())
     
     alpha = float(args['alpha']) * pi / 180
     alpha  = 51 * pi / 180
     n = float(args['normal'])
     n = 0.47
+    frame = args['frame']
+    frame = '/arm_link_0'
 
     if args['topic'] is not None:
         topicNum = int(args['topic'])
-    return alpha, n, topicNum
+    return alpha, n, topicNum, frame
 
 
 def cvnavi():
     """ the main launching function """
-    alpha, n, topicNum = getArgs()
+    alpha, n, topicNum, frame = getArgs()
     rospy.init_node('cv_tape_dtc', anonymous=False)
     rospy.loginfo("Camera's topic is " + CAMERA_TOPICS[topicNum])
-    glooping = GloopingAtTheFloorServer(CAMERA_TOPICS[topicNum], alpha, n)
+    glooping = GloopingAtTheFloorServer(CAMERA_TOPICS[topicNum], frame, alpha, n)
     glooping.startServer()
     rospy.loginfo('Spining...')
     rospy.spin()
