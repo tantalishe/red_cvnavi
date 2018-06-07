@@ -30,7 +30,7 @@ def getLine(image, tapeType='r'):
         lower1 = np.array([160, 70, 0]) #706BA5
         upper1 = np.array([180, 255, 255]) #D3D7DF
         lower2 = np.array([0, 100, 0]) #706BA5
-        upper2 = np.array([15, 255, 255]) #D3D7DF
+        upper2 = np.array([10, 255, 255]) #D3D7DF
         # lower = np.array([165, 107, 112]) #706BA5
         # upper = np.array([211, 255, 255]) #D3D7DF
 

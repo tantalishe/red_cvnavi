@@ -9,8 +9,9 @@ from utils import *
 from scipy import matrix
 
 RESOLUTION = (640, 480)         # Width, Height
-FOVS = (43.78, 54.35, 65.47)    # vertical, horizontal, diagonal angles. Logitech 920FullHD (640, 480)
+# FOVS = (43.78, 54.35, 65.47)    # vertical, horizontal, diagonal angles. Logitech 920FullHD (640, 480)
 VIDEO_DEV = 1                   # /dev/video1
+FOVS = (41.5, 53.6, 64.5)          # not very precise fovs for Intel RealSense SR300 (4:3)
 
 
 class LineFinder:
@@ -82,21 +83,22 @@ class LineFinder:
         kv = self.pxToM(kv, 'v')
         kh = self.pxToM(kh, 'h')
 
-        # Z - optical axis, direction of sight; Y - left from viewer; X - up from viewer
+        # Z - optical axis, direction of sight; Y - down from viewer; X - left from viewer
         tan_beta = tan(pi/2 - self.alpha)
         z = L / (1 - kv/l0/tan_beta)
-        # z = tan_beta  * L / (tan_beta  - kv / l0) # can't understand how dis work
+        # z = tan_beta  * L / (tan_beta  - kv / l0) # same thing
         
-        # offset_angle = atan2(kv, l0)
-        # z = self.n * cos(offset_angle)/cos(self.alpha + offset_angle) # mah method
-        
-        x = kv * z / l0
-        # y = kh * z / l0
-        y = - kh * z / l0 # wrong axis direction
+        x = - kh * z / l0
+        y = kv * z / l0
 
-        OR2 = x**2 + z**2 - self.n**2
-        gamma = atan2(y, sqrt(OR2))
-        k = sqrt(OR2 + y**2)
+        # x = sqrt(y**2 + z**2 - self.n**2)
+        # y = -x
+
+        # gamma = atan2(y, x)
+        # k = sqrt(x*x + y*y)
+
+        # print("k = ", k, "   gamma = ", gamma)
+        # print("z = ", z, "  y = ", y, "   x = ", x)
 
         return (x, y, z)
 
@@ -104,95 +106,6 @@ class LineFinder:
         objGRF = (x, y)
         objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
         return objCRF
-
-    # def tests(self): # tests only forthe weak
-    #     """ ONLY FOR TEST ON LOCAL COMPUTER WITHOUT ROS!!!"""
-    #     t = matrix([[   cos(self.alpha), 0, sin(self.alpha), 0],
-    #                   [ 0, -1, 0, 0],
-    #                   [ sin(self.alpha), 0, -cos(self.alpha), self.n],
-    #                   [ 0, 0, 0, 1]])
-    #     print(t)
-    #     while True:
-    #         _, raw = self.cam.read()
-    #         h, w, _ = raw.shape
-    #         blank_image = np.zeros_like(raw)
-    #         raw = cv2.blur(raw, (5  ,5))
-    #         hsv = cv2.cvtColor(raw, cv2.COLOR_BGR2HSV)
-    #         lower = np.array([165, 107, 112])
-    #         upper = np.array([211, 215, 223])
-    #         mask = cv2.inRange(hsv, lower, upper)
-    #         res = cv2.bitwise_and(raw, raw, mask=mask)
-
-    #         v = np.median(mask)
-    #         sigma = 0.33
-    #         canny_low = int(max(0, (1 - sigma) * v))
-    #         canny_high = int(min(255, (1 + sigma) * v))
-
-    #         th = cv2.Canny(mask, 1, 250)
-    #         # th = cv2.dilate(edges, None, iterations=2)
-    #         # th = cv2.erode(edges, None, iterations=2)
-
-    #         cnts, hier = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-    #         x = []
-    #         y = []
-    #         points = []
-    #         for cnt in cnts:
-    #             if cv2.contourArea(cnt) > 100:
-    #                 M = cv2.moments(cnt)
-    #                 cx = int(M['m10']/M['m00'])
-    #                 cy = int(M['m01']/M['m00'])
-    #                 x.append(cx)
-    #                 y.append(cy)
-    #                 points.append([cx, cy])
-    #                 cv2.circle(raw, (cx, cy), 2, (0, 255, 0), 2)
-
-    #         points = np.array(points)
-
-    #         # x = np.transpose(x)
-    #         # y = np.transpose(y)
-    #         # A = np.vstack([x, np.ones(len(x))]).T
-    #         # m, c = np.linalg.lstsq(A, y)[0]
-
-    #         rows, cols = raw.shape[:2]
-    #         if len(points) > 0:
-    #             [vx, vy, x, y] = cv2.fitLine(points, cv2.DIST_LABEL_PIXEL, 0, 0.01, 0.01)
-
-    #             x_min = min(points[:,0])
-    #             x_max = max(points[:,0])
-    #             y_min = min(points[:,1])
-    #             y_max = max(points[:,1])
-
-    #             lefty = (int(x_min), int([y for x, y in points if x == x_min][0]))
-    #             righty = (int(x_max), int([y for x, y in points if x == x_max][0]))
-
-    #             cv2.line(raw, lefty, righty, (0, 255, 0), 2)
-
-    #             # objGRF = lefty
-    #             # objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
-
-    #             objCRF = self.convertToCenterRF(lefty)
-    #             x, y, z = self.getPoint3d(objCRF[1], objCRF[0])
-    #             floorPoint = t * np.transpose(matrix([x, y, z, 1]))
-    #             # print(x,y,z)
-    #             print(np.transpose(floorPoint))
-    #         #
-    #         # point in a center frame
-    #         cv2.circle(raw, (int(self.CRF[0]), int(self.CRF[1])), 5, (0, 200, 200), 2)
-    #         # cross in a center frame
-    #         cv2.line(raw, (0, self.CRF[1]), (self.xy0[1], self.CRF[1]), (0, 200, 200), 1)
-    #         cv2.line(raw, (self.CRF[0], 0), (self.CRF[0], self.xy0[0]), (0, 200, 200), 1)
-
-    #         cv2.imshow("raw", raw)
-    #         # cv2.imshow("th_hsv", mask)
-    #         # cv2.imshow('bitwise', res)
-    #         # cv2.imshow('canny', th)
-
-    #         if cv2.waitKey(1) & 0xFF == ord('q'):
-    #             break
-
-    #     self.cam.release()
-    #     cv2.destroyAllWindows()
 
     def getLine(self, image, tapeType='r'):
         isFind = False
@@ -202,10 +115,10 @@ class LineFinder:
             # cv2.Inrange works wrong for red color
             # then we need two masks
             color = [0, 0, 255]
-            lower1 = np.array([160, 70, 0]) 
+            lower1 = np.array([160, 100, 50]) 
             upper1 = np.array([180, 255, 255]) 
-            lower2 = np.array([0, 100, 0]) 
-            upper2 = np.array([15, 255, 255])
+            lower2 = np.array([0, 100, 50]) 
+            upper2 = np.array([10, 255, 255])
 
             # filtering and lentochka selection in bin image
             raw = cv2.blur(image, (5, 5))
@@ -261,13 +174,28 @@ class LineFinder:
 
             points = np.array(points)
 
+            # laser_points = [] # transfor to polar
+
+            # for point in points:
+
+            #     x = sqrt(point[1]**2 + point[2]**2 - self.n**2)
+            #     y = -point[0]
+
+            #     print("new x = ",x," new y = ",y)
+
+            #     gamma = atan2(y, x)
+            #     k = sqrt(x*x + y*y)
+            #     # print(gamma, k)
+            #     print()
+            #     laser_points.append([gamma,k])
+
 
         # cross in a center frame
         cv2.line(image, (0, self.CRF[1]), (self.xy0[1], self.CRF[1]), (0, 200, 200), 1)
         cv2.line(image, (self.CRF[0], 0), (self.CRF[0], self.xy0[0]), (0, 200, 200), 1)
 
         mask = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
-        image = np.concatenate((mask, image), axis=0)  
+        image = np.concatenate((mask, image), axis=1)  
         return points, image, isFind
 
 

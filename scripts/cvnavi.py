@@ -27,11 +27,13 @@ def getArgs():
     args = vars(ap.parse_args())
     
     alpha = float(args['alpha']) * pi / 180
-    alpha  = 51 * pi / 180
+    alpha  = 0.4965
     n = float(args['normal'])
-    n = 0.47
+    n = 0.34
     frame = args['frame']
-    frame = '/arm_link_0'
+    # frame = '/arm_link_0'
+    frame = '/arm_link_1'
+
 
     if args['topic'] is not None:
         topicNum = int(args['topic'])
