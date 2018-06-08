@@ -43,7 +43,8 @@ class GloopingAtTheFloorServer:
         self.points = None
 
         self.pubView = rospy.Publisher('see_tape', Image, queue_size=1)
-        self.pubLine = rospy.Publisher('camera_tape', LaserScan, queue_size=1)
+        self.pubLineRed = rospy.Publisher('red_tape', LaserScan, queue_size=1)
+        self.pubLineYellow = rospy.Publisher('yellow_tape', LaserScan, queue_size=1)
         self.rate = rospy.Rate(10.0)
 
         self.translationFromTF = True
@@ -53,6 +54,8 @@ class GloopingAtTheFloorServer:
         self.listener = tf.TransformListener()
         self.t = tf.TransformerROS(True)
         self.br = tf.TransformBroadcaster()
+
+        self.visualisation = True
 
     def __del__(self):
         del(self.subCamera)
@@ -79,37 +82,25 @@ class GloopingAtTheFloorServer:
             dist_to_floor = 0.3 # distance from arm1 to floor
             self.n = trans[2] + dist_to_floor
             self.alpha = angleBetween(z_target, z_ref)
-            # print("alpha = ", self.alpha)
-            # print("n = ", self.n)
+
 
         fl = LineFinder(self.cameraInfo, self.alpha, self.n)
 
         # tape_colors = ['r', 'y'] # find red and yellow lines
         tape_colors = ['r'] # find only red lines
         for tType in tape_colors:
-            self.points, imageEx, isFind = fl.getLine(cvImage, tapeType=tType)
+            self.points, imageEx, isFind = fl.getLine(cvImage, tapeType=tType, self.visualisation)
             if isFind:
                 msg = self.getLaserScanMsg(self.points)
-                # msg = PoseArray()
-                # msg.header.frame_id = 'camera'
-                # msg.header.stamp = rospy.Time()
-                # if tType == 'r':
-                #     msg.header.seq = 0
-                # elif tType == 'y':
-                #     msg.header.seq = 1
-
-                # for point in self.points:
-                #     p = Pose()
-                #     p.position.x = point[0]
-                #     p.position.y = point[1]
-                #     p.position.z = point[2]
-                #     msg.poses.append(p)
-
-                self.pubLine.publish(msg)
+                if tType = 'r':
+                    self.pubLineRed.publish(msg)
+                else:
+                    self.pubLineYellow.publish(msg)
 
             # publish decorated image
-            imageMsgEx = getMsgImage(imageEx)
-            self.pubView.publish(imageMsgEx)
+            if self.visualisation:
+                imageMsgEx = getMsgImage(imageEx)
+                self.pubView.publish(imageMsgEx)
         self.rate.sleep()
 
     def handler(self, request):
@@ -195,6 +186,7 @@ class GloopingAtTheFloorServer:
 
     def getLaserScanMsg(self, points):
 
+        # parameters of laserscan message
         minAngle = -1.5
         maxAngle = 1.5
         incrementAngle = 0.05
@@ -202,6 +194,7 @@ class GloopingAtTheFloorServer:
         minRange = 0.05
         maxRange = 8
 
+        # make new frame projection of arm_link1 to Oxy plane of base_link 
         try:
             (trans,rot) = self.listener.lookupTransform(self.refFrame , self.baseFrame, rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
@@ -225,43 +218,39 @@ class GloopingAtTheFloorServer:
         msg.range_min = minRange
         msg.range_max = maxRange
 
+
         try:
             (trans,rot) = self.listener.lookupTransform(self.refFrame , self.cameraFrame, rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             rospy.loginfo('cvnavi TF error')
 
-        laser_points = [] # transfor to polar
+        laser_points = [] 
 
         for point in points:
+            # transform 3d coordinates in camera frame to 2d coordinates in tapeFrame
+            x = sqrt(point[1]**2 + point[2]**2 - self.n**2) + trans[0]
+            y = -point[0] + trans[1]
 
-            # x = sqrt(point[1]**2 + point[2]**2 - self.n**2) + trans[0]
-            # y = -point[0] + trans[1]
-            x = sqrt(point[1]**2 + point[2]**2 - self.n**2)
-            y = -point[0]
-            # k = sqrt(x*x + y*y)
-            # print(x,y)
-            x = x + trans[0]
-            y = y + trans[1]
+            # tranform 2d coordinates to polar
+            theta = atan2(y, x)
+            r = sqrt(x*x + y*y)
 
-            gamma = atan2(y, x)
-            k = sqrt(x*x + y*y)
-            # print(gamma, k)
-            # print()
-            laser_points.append([gamma,k])
+            laser_points.append([theta,r])
 
+        # make ranges of laserscan
+        # if theta ~ angle of laserscan then: range = r
+        # else: range = max range # ROS discard max rage values?
         for i in range(int((maxAngle - minAngle)/incrementAngle)):
             cur_angle = i * incrementAngle + minAngle
-            f = True
+            flag = True
             for laser_point in laser_points:
-                print("lp = ",laser_point[0], laser_point[1], "   cur = ", cur_angle)
                 if ((laser_point[0] > cur_angle) and (laser_point[0] < cur_angle + incrementAngle)):
                     msg.ranges.append(laser_point[1])
-                    f = False
+                    flag = False
                     break       
-            if f:
+            if flag:
                 msg.ranges.append(maxRange)
 
-        # print()
         return msg
 
 

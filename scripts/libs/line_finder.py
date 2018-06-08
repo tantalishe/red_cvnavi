@@ -28,12 +28,6 @@ class LineFinder:
         # center RF
         self.CRF = (y / 2, x / 2)       # поворот системы координат кадра на pi/2 и перенос в центр кадра
 
-        # kernel for closing
-        # self.kernel = np.array([[0,0,1,1,1,0,0],[0,1,1,1,1,1,0],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[1,1,1,1,1,1,1],[0,1,1,1,1,1,0],[0,0,1,1,1,0,0]],np.uint8)
-
-        # self.cam = cv2.VideoCapture(VIDEO_DEV)
-        # self.tests()
-
     def pointsOnLine(self, points):
         # Return inliers for founded line
 
@@ -67,7 +61,6 @@ class LineFinder:
             returns: x, y, z in [m] in CameraRF
         """
         L = self.n / cos(self.alpha)
-        # print("L={0}".format(L))
         R = self.n * tan(self.alpha)
         r0 = self.n * tan(self.alpha - self.cameraInfo['fovs']['v'] / 2)
         r = R - r0
@@ -91,15 +84,6 @@ class LineFinder:
         x = - kh * z / l0
         y = kv * z / l0
 
-        # x = sqrt(y**2 + z**2 - self.n**2)
-        # y = -x
-
-        # gamma = atan2(y, x)
-        # k = sqrt(x*x + y*y)
-
-        # print("k = ", k, "   gamma = ", gamma)
-        # print("z = ", z, "  y = ", y, "   x = ", x)
-
         return (x, y, z)
 
     def convertToCenterRF(self, (x, y)):
@@ -107,7 +91,7 @@ class LineFinder:
         objCRF = (self.CRF[0] - objGRF[0], self.CRF[1] - objGRF[1])
         return objCRF
 
-    def getLine(self, image, tapeType='r'):
+    def getLine(self, image, tapeType='r', visualisation = False):
         isFind = False
         # select type of tape
         # default white/red tape
@@ -130,9 +114,17 @@ class LineFinder:
 
         # yellow/black
         if tapeType == 'y':
-            color = [0, 200, 200]
-            lower = np.array([165, 107, 112])
-            upper = np.array([211, 215, 223])
+            color = [0, 255, 255]
+            lower = np.array([25, 100, 100])
+            upper = np.array([35, 255, 255])
+
+            # filtering and lentochka selection in bin image
+            raw = cv2.blur(image, (5, 5))
+            hsv = cv2.cvtColor(raw, cv2.COLOR_BGR2HSV)
+
+            mask = cv2.inRange(hsv, lower, upper)
+
+
         elif tapeType == 'b':
             color = [255, 0, 0]
             lower = np.array([165, 107, 112])
@@ -151,51 +143,39 @@ class LineFinder:
                 cx = int(M['m10'] / M['m00'])
                 cy = int(M['m01'] / M['m00'])
                 points.append([cx, cy])
-                # draw all points, color - green
-                cv2.circle(image, (cx, cy), 2, (0, 255, 0), 1)
+
+                if visualisation:
+                    # draw all points, color - green
+                    cv2.circle(image, (cx, cy), 2, (0, 255, 0), 1)
 
         # convert that our array to numpy type
         points = np.array(points)
 
         # return all points belonging to line
-        # xyzL, xyzR = (0, 0, 0), (0, 0, 0)
         if len(points) > 1:
             isFind = True
 
             filtered_points = self.pointsOnLine(points)
             points = []
             for point in filtered_points:
-                # print(color)
-                # draw inliers, color - tape type color
-                cv2.circle(image, (int(point[0]), int(point[1])), 5, color, 2)
                 objCRF = self.convertToCenterRF(point)
                 xyz = self.getPoint3d(objCRF[1], objCRF[0])
                 points.append(xyz)
 
+                if visualisation:
+                    # draw inliers, color - tape type color
+                    cv2.circle(image, (int(point[0]), int(point[1])), 5, color, 2)
+
+
             points = np.array(points)
 
-            # laser_points = [] # transfor to polar
+        if visualisation:
+            # cross in a center frame
+            cv2.line(image, (0, self.CRF[1]), (self.xy0[1], self.CRF[1]), (0, 200, 200), 1)
+            cv2.line(image, (self.CRF[0], 0), (self.CRF[0], self.xy0[0]), (0, 200, 200), 1)
 
-            # for point in points:
-
-            #     x = sqrt(point[1]**2 + point[2]**2 - self.n**2)
-            #     y = -point[0]
-
-            #     print("new x = ",x," new y = ",y)
-
-            #     gamma = atan2(y, x)
-            #     k = sqrt(x*x + y*y)
-            #     # print(gamma, k)
-            #     print()
-            #     laser_points.append([gamma,k])
-
-
-        # cross in a center frame
-        cv2.line(image, (0, self.CRF[1]), (self.xy0[1], self.CRF[1]), (0, 200, 200), 1)
-        cv2.line(image, (self.CRF[0], 0), (self.CRF[0], self.xy0[0]), (0, 200, 200), 1)
-
-        mask = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
-        image = np.concatenate((mask, image), axis=1)  
+            mask = cv2.cvtColor(mask,cv2.COLOR_GRAY2RGB)
+            image = np.concatenate((mask, image), axis=1)  
         return points, image, isFind
 
 
